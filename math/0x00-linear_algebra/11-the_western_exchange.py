@@ -3,5 +3,6 @@
 
 
 def np_transpose(matrix):
+    """ uses transpose method in numpy """
     import numpy as np
     return np.transpose(matrix)

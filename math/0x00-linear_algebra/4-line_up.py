@@ -3,6 +3,10 @@
 
 
 def add_arrays(arr1, arr2):
+    """
+    function that adds arrays
+    where matrix_sum  is matrix to return
+    """
     if len(arr1) != len(arr2):
         return None
 

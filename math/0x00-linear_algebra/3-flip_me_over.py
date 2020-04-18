@@ -3,6 +3,10 @@
 
 
 def matrix_transpose(matrix):
+    """
+    function that transposes matrix using nested for loops
+    and enumerate to append to new matrix
+    """
     matrix1 = []
     for i, row in enumerate(matrix):
         for j, col in enumerate(row):

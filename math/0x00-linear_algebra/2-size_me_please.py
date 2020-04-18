@@ -3,6 +3,10 @@
 
 
 def matrix_shape(matrix):
+    """
+    calculatie size of matrix where matrix is
+    input and returns len of matrix if true
+    """
     if not matrix:
         return None
     if type(matrix[0]) is not list:
