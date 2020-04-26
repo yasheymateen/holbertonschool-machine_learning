@@ -15,6 +15,6 @@ def poly_derivative(poly):
     _, *poly = poly
     if any(poly):
         derivative = [power * coeff for power, coeff in enumerate(poly, 1)]
-        if derivative == []:
+        if derivative == 0:
             derivative = [0]
         return derivative
