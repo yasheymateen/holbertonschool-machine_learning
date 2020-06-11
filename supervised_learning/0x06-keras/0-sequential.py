@@ -7,9 +7,9 @@ import tensorflow.keras as K
 
 def build_model(nx, layers, activations, lambtha, keep_prob):
     """ make a neural network w/ droput"""
-    reg = K.regularizers.12
+    reg = K.regularizers.l2
     model = K.Sequential()
-    mode.add(K.layers.Dense(layers[0], input_shape=(nx,),
+    model.add(K.layers.Dense(layers[0], input_shape=(nx,),
                             activation=activations[0],
                             kernel_regularizer=reg(lambtha)))
     for layer, act in zip(layers[1:], activations[1:]):
