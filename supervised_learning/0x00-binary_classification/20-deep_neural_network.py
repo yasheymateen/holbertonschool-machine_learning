@@ -1,36 +1,40 @@
 #!/usr/bin/env python3
-""" Deep Neural Network Class """
-
-
+""" Class DeepNeuralNetwork """
 import numpy as np
 
 
-class DeepNeuralNetwork:
-    """ deep neural network class """
+class DeepNeuralNetwork(object):
+    """ DeepNeuralNetwork """
 
     def __init__(self, nx, layers):
-        """ nx: number of input features """
-        if type(nx) is not int:
-            raise TypeError("nx must be an integer")
-        if nx < 1:
-            raise ValueError("nx must be a positive integer")
-        if t ype(layers) is not list or len(layers) < 1:
-            raise TypeError("layers must be a list of positive integers")
-        for layer in layers:
-            if type(layer) is not int or layer < 1:
-                raise TypeError("layers must be a list of positive integers")
+        """ Init method """
+        if type(nx) != int:
+            raise TypeError('nx must be an integer')
+        else:
+            if nx < 1:
+                raise ValueError('nx must be a positive integer')
 
+        if type(layers) != list:
+            raise TypeError('layers must be a list of positive integers')
+        else:
+            if any(list(map(lambda x: x <= 0, layers))):
+                raise TypeError('layers must be a list of positive integers')
+            if len(layers) < 1:
+                raise TypeError('layers must be a list of positive integers')
         self.__L = len(layers)
         self.__cache = {}
-        self.__weights = {"W1": np.random.randn(layers[0], nx) *
-                          np.sqrt(2 / nx),
-                          "b1": np.zeros((layers[0], 1))}
-        for layer, size in enumerate(layers[1:], 2):
-            cur = "W" + str(layer)
-            self.__weights[cur] = (np.random.randn(size, layers[layer - 2]) *
-                                   np.sqrt(2 / layers[layer - 2]))
-            cur = "b" + str(layer)
-            self.__weights[cur] = np.zeros((layers[layer - 1], 1))
+        self.__weights = {}
+        for i in range(len(layers)):
+            key = "W{}".format(i + 1)
+            if i == 0:
+                self.weights[key] = np.random.randn(layers[i],
+                                                    nx)*np.sqrt(2/nx)
+                self.weights["b{}".format(i + 1)] = np.zeros((layers[i], 1))
+            else:
+                self.weights[key] = (np.random.randn(layers[i],
+                                                     layers[i - 1]) *
+                                     np.sqrt(2/layers[i - 1]))
+                self.weights["b{}".format(i + 1)] = np.zeros((layers[i], 1))
 
     @property
     def L(self):
@@ -45,23 +49,27 @@ class DeepNeuralNetwork:
         return self.__weights
 
     def forward_prop(self, X):
-        """ forward propagation of neural network """
-        self.__cache["A0"] = X
-        for layer in range(self.__L):
-            curw = "W" + str(layer + 1)
-            curb = "b" + str(layer + 1)
-            cura = "A" + str(layer + 1)
-            preva = "A" + str(layer)
-            z = (np.dot(self.__weights[curw], self.__cache[preva]) +
-                 self.__weights[curb])
-            self.__cache[cura] = 1 / (1 + np.exp(-z))
-        return self.__cache["A" + str(self.__L)], self.__cache
+        """ Method fo forward propagation """
+        self.__cache['A0'] = X
+        for i in range(self.L):
+            keyA = "A{}".format(i + 1)
+            keyb = "b{}".format(i + 1)
+            keyAo = "A{}".format(i)
+            keyW = "W{}".format(i + 1)
+            self.__cache[keyA] = 1.0 / (1.0 +
+                                        np.exp(-(np.matmul(self.weights[keyW],
+                                                           self.cache[keyAo])
+                                               + self.weights[keyb])))
+
+        return self.cache[keyA], self.cache
 
     def cost(self, Y, A):
-        """ calculates cost of neural network """
-        return -(Y * np.log(A) + (1 - Y) * np.log(1.0000001 - A)).mean()
+        """ Method to compute the Cost """
+        m = Y.shape[1]
+        cost = np.sum((-Y * np.log(A)) - ((1 - Y) * np.log(1.0000001 - A))) / m
+        return cost
 
     def evaluate(self, X, Y):
-        """ evaluates the neural network """
-        A = self.forward_prop(X)[0]
-        return A.round().astype(int), self.cost(Y, A)
+        """ Method to evaluate the Neural Network """
+        A, cache = self.forward_prop(X)
+        return np.where(A >= 0.5, 1, 0), self.cost(Y, A)
