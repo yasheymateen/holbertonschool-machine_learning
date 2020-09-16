@@ -1,33 +1,37 @@
 #!/usr/bin/env python3
-""" Deep Neural Network Class """
-
-
+""" Class DeepNeuralNetwork """
 import numpy as np
 
 
-class DeepNeuralNetwork:
-    """ deep neural network class """
+class DeepNeuralNetwork(object):
+    """ DeepNeuralNetwork """
 
     def __init__(self, nx, layers):
-        """ nx: number of input features """
-        if type(nx) is not int:
-            raise TypeError("nx must be an integer")
-        if nx < 1:
-            raise ValueError("nx must be a positive integer")
-        if t ype(layers) is not list or len(layers) < 1:
-            raise TypeError("layers must be a list of positive integers")
-        for layer in layers:
-            if type(layer) is not int or layer < 1:
-                raise TypeError("layers must be a list of positive integers")
+        """ Init method """
+        if type(nx) != int:
+            raise TypeError('nx must be an integer')
+        else:
+            if nx < 1:
+                raise ValueError('nx must be a positive integer')
 
+        if type(layers) != list:
+            raise TypeError('layers must be a list of positive integers')
+        else:
+            if any(list(map(lambda x: x <= 0, layers))):
+                raise TypeError('layers must be a list of positive integers')
+            if len(layers) < 1:
+                raise TypeError('layers must be a list of positive integers')
         self.L = len(layers)
         self.cache = {}
-        self.weights = {"W1": np.random.randn(layers[0], nx) *
-                        np.sqrt(2 / nx),
-                        "b1": np.zeros((layers[0], 1))}
-        for layer, size in enumerate(layers[1:], 2):
-            cur = "W" + str(layer)
-            self.weights[cur] = (np.random.randn(size, layers[layer - 2]) *
-                                 np.sqrt(2 / layers[layer - 2]))
-            cur = "b" + str(layer)
-            self.weights[cur] = np.zeros((layers[layer - 1], 1))
+        self.weights = {}
+        for i in range(len(layers)):
+            key = "W{}".format(i + 1)
+            if i == 0:
+                self.weights[key] = np.random.randn(layers[i],
+                                                    nx)*np.sqrt(2/nx)
+                self.weights["b{}".format(i + 1)] = np.zeros((layers[i], 1))
+            else:
+                self.weights[key] = (np.random.randn(layers[i],
+                                                     layers[i - 1]) *
+                                     np.sqrt(2/layers[i - 1]))
+                self.weights["b{}".format(i + 1)] = np.zeros((layers[i], 1))
