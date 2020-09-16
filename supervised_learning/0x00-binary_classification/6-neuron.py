@@ -1,71 +1,79 @@
 #!/usr/bin/env python3
-""" Neuron class defining single neuron performing binary classification """
-
+""" Class Neuron """
 import numpy as np
 
 
-class Neuron:
-    """ neuron class """
-
+class Neuron(object):
+    """Neuron"""
     def __init__(self, nx):
-        """ nx: number of input features to the neuron """
-        if type(nx) is not int:
-            raise TypeError("nx must be an integer")
-        if nx < 1:
-            raise ValueError("nx must be a positive integer")
-        self.__W = np.ndarray((1, nx))
-        self.__W[0] = np.random.normal(size=nx)
+        """ Init method """
+        if type(nx) != int:
+            raise TypeError('nx must be an integer')
+        else:
+            if nx < 1:
+                raise ValueError('nx must be a positive integer')
+        self.__W = np.random.randn(1, nx)
         self.__b = 0
         self.__A = 0
 
     @property
     def W(self):
-        """ Returns weights """
+        """ Getter W """
         return self.__W
 
     @property
     def b(self):
-        """ Returns bias """
+        """ Getter b """
         return self.__b
 
     @property
     def A(self):
-        """ Returns activation values """
+        """ Getter A """
         return self.__A
 
     def forward_prop(self, X):
-        """ calculates forward propagation of neuron """
-        self.__A = 1 / (1 + np.exp(-1 * (np.dot(self.__W, X) + self.__b)))
+        """ Method for Forward Propagation """
+        self.__A = self.__A = 1.0/(1.0 +
+                                   np.exp(-(np.matmul(self.W, X)
+                                          + self.b)))
         return self.__A
 
     def cost(self, Y, A):
-        """ calculates cost of the model using logistic regression """
-        costsum = 0
-        return -(Y * np.log(A) + (1 - Y) * np.log(1.0000001 - A)).mean()
+        """ Method to compute the cost """
+        m = Y.shape[1]
+        cost = np.sum((-Y * np.log(A)) - ((1 - Y) * np.log(1.0000001 - A))) / m
+        return cost
 
     def evaluate(self, X, Y):
-        """ Evalutes the neuron's predictions """
-        A = np.ndarray((1, X.shape[1]))
-        A[0] = self.forward_prop(X)
-        return np.round(A).astype(int), self.cost(Y, A)
+        """ Method to evaluate the neuron """
+        Z = self.forward_prop(X)
+        return np.where(self.__A >= 0.5, 1, 0), self.cost(Y, Z)
 
-    def gradient_descent(self, X, Y, A, alpha=0.5):
-        """ Calculates one pass of gradient descent on the neuron """
-        self.__W[0] = (self.__W[0] - alpha *
-                       np.dot(X, (A - Y).T).T[0] / X.shape[1])
-        self.__b -= alpha * (A[0] - Y[0]).mean()
+    def gradient_descent(self, X, Y, A, alpha=0.05):
+        """ Method to compute the gradient descent """
+        m = Y.shape[1]
+        dZ = A - Y
+        dW = (1 / m) * np.matmul(X, dZ.T).T
+        db = (1 / m) * np.sum(dZ)
+        self.__W = self.__W - (alpha * dW)
+        self.__b = self.__b - (alpha * db)
 
     def train(self, X, Y, iterations=5000, alpha=0.05):
-        """ Trains the neuron """
-        if type(iterations) is not int:
-            raise TypeError("iterations must be an integer")
-        if iteractions <= 0:
-            raise ValueError("iterations must be a positive integer")
-        if type(alpha) is not float:
-            raise TypeError("alpha must be a float")
-        if alpha <= 0:
-            raise ValueError("alpha must be positive")
-        while iterations > 0:
-            self.gradient_descent(X, Y, self.forward_prop(X), alpha)
-            iterations -= 1
+        """ Method to train the neuron """
+        if type(iterations) != int:
+            raise TypeError('iterations must be an integer')
+        else:
+            if iterations < 0:
+                raise ValueError('iterations must be a positive integer')
+
+        if type(alpha) != float:
+            raise TypeError('alpha must be a float')
+        else:
+            if alpha < 0:
+                raise ValueError('alpha must be positive')
+
+        for i in range(iterations):
+            A = self.forward_prop(X)
+            self.gradient_descent(X, Y, A, alpha)
+
         return self.evaluate(X, Y)
