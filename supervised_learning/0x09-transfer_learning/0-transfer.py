@@ -83,9 +83,9 @@ def train_model(network, data, labels, batch_size, epochs,
 
 
 if __name__ == '__main__':
-    (X_train, Y_train), (X_valid, Y_valid) = K.datasets.cifar10(load_data)
+    (X_train, Y_train), (X_valid, Y_valid) = K.datasets.cifar10.load_data()
     X_train, Y_train = preprocess_data(X_train, Y_train)
-    X_valid, Y_valid = preprocess_data(x_valid, Y_valid)
+    X_valid, Y_valid = preprocess_data(X_valid, Y_valid)
     model = model()
     train_model(model, X_train, Y_train, 64, 30,
                 validation_data=(X_valid, Y_valid), early_stopping=True,
