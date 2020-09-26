@@ -34,8 +34,8 @@ def train_model(network, data, labels, batch_size, epochs,
                 validation_data=None, early_stopping=False,
                 patience=0, alpha=0.1, decay_rate=1,
                 filepath=None, verbose=True, shuffle=False):
-    """ 
-    trains model using mini-batch graident descent 
+    """
+    trains model using mini-batch graident descent
     network - tf.Tensor - model to train
     data - numpy.ndarray - contains input data
     labels - numpy.ndarray - onehot array w/labels of data
@@ -47,7 +47,7 @@ def train_model(network, data, labels, batch_size, epochs,
     early_stopping - should early stopping be used, det. by bool
     patience - patience for early stopping, det by bool
     learning_ratedecay - should learning rate decay be used
-    alpha - initial learning rate float 
+    alpha - initial learning rate float
     decay_rate - float
     save_best - either to save the model after epoch or not
     filepath - path of saved model
@@ -81,6 +81,12 @@ def train_model(network, data, labels, batch_size, epochs,
                        validation_data=validation_data,
                        callbacks=callbacks)
 
+
 if __name__ == '__main__':
     (X_train, Y_train), (X_valid, Y_valid) = K.datasets.cifar10(load_data)
+    X_train, Y_train = preprocess_data(X_train, Y_train)
+    X_valid, Y_valid = preprocess_data(x_valid, Y_valid)
     model = model()
+    train_model(model, X_train, Y_train, 64, 30,
+                validation_data=(X_valid, Y_valid), early_stopping=True,
+                patience=3, alpha=0.001, filepath='cifar10.h5')
