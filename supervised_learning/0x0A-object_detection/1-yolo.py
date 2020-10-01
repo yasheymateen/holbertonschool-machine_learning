@@ -38,9 +38,14 @@ class Yolo(object):
             cy = np.array([np.arange(grid_width) for i in range(grid_height)])
             cy = cy.reshape(grid_height, gridheight).T.reshape(grid_height,
                                                                grid_height, 1)
+            bx = ((1 / (1 + np.exp(-t_x))) + cx) / grid_width
+            by = ((1 / (1 + np.exp(-t_y))) + cy) / grid_height
 
-            bx = p_w * np.exp(t_w)
+            bw = p_w * np.exp(t_w)
             bh = p_h * np.exp(t_h)
+
+            bw /= self.model.input.shape[1].value
+            bh /= self.model.input.shape[2].value
 
             boxes[i][:, :, :, 0] = (bx - (bw / 2)) * img_width
             boxes[i][:, :, :, 1] = (by - (bh / 2)) * img_height
