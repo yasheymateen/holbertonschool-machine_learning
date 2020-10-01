@@ -20,9 +20,9 @@ class Yolo(object):
     def process_outputs(self, outputs, image_size):
         """ Process the outputs """
         boxes = [np.zeros(i[:, :, :, :4].shape) for i in outputs]
-        box_conf = []
-        box_class_prob = []
-        img_height, img_width = img_size
+        box_confidence = []
+        box_class_probs = []
+        image_height, image_width = image_size
         for i in range(len(outputs)):
             grid_height, grid_width, anchor_boxes, _ = outputs[i].shape
             t_x = outputs[i][:, :, :, 0]
@@ -47,16 +47,16 @@ class Yolo(object):
             bw /= self.model.input.shape[1].value
             bh /= self.model.input.shape[2].value
 
-            boxes[i][:, :, :, 0] = (bx - (bw / 2)) * img_width
-            boxes[i][:, :, :, 1] = (by - (bh / 2)) * img_height
-            boxes[i][:, :, :, 2] = (bx + (bw / 2)) * img_width
-            boxes[i][:, :, :, 3] = (by + (bh / 2)) * img_height
+            boxes[i][:, :, :, 0] = (bx - (bw / 2)) * image_width
+            boxes[i][:, :, :, 1] = (by - (bh / 2)) * image_height
+            boxes[i][:, :, :, 2] = (bx + (bw / 2)) * image_width
+            boxes[i][:, :, :, 3] = (by + (bh / 2)) * image_height
 
-            conf = (1 / (1 + np.exp(-outputs[i][:, :, :, 4:5])))
-            conf.reshape(grid_height, grid_width, anchor_boxes, 1)
-            box_conf.append(conf)
+            box_conf = (1 / (1 + np.exp(-outputs[i][:, :, :, 4:5])))
+            box_conf.reshape(grid_height, grid_width, anchor_boxes, 1)
+            box_confidence.append(box_conf)
 
             box_class = (1 / (1 + np.exp(-outputs[i][:, :, :, 5:])))
-            box_class_prob.append(box_class)
+            box_class_probs.append(box_class)
 
-        return boxes, box_conf, box_class_prob
+        return boxes, box_confidence, box_class_probs
