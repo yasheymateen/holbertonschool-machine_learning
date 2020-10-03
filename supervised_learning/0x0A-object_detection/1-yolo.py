@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-""" Yolo class """
+"""Yolo """
 import tensorflow.keras as K
 
 
 class Yolo(object):
-    """ Yolo """
-
+    """ Yolo class """
     def __init__(self, model_path, classes_path, class_t, nms_t, anchors):
-        """ Initialize """
+        """ Initializer """
         model = K.models.load_model(model_path)
         self.model = model
         with open(classes_path, 'r') as fp:
@@ -36,8 +35,9 @@ class Yolo(object):
             cx = np.array([np.arange(grid_width) for i in range(grid_height)])
             cx = cx.reshape(grid_width, grid_width, 1)
             cy = np.array([np.arange(grid_width) for i in range(grid_height)])
-            cy = cy.reshape(grid_height, gridheight).T.reshape(grid_height,
-                                                               grid_height, 1)
+            cy = cy.reshape(grid_height,
+                            grid_height).T.reshape(grid_height, grid_height, 1)
+
             bx = ((1 / (1 + np.exp(-t_x))) + cx) / grid_width
             by = ((1 / (1 + np.exp(-t_y))) + cy) / grid_height
 
