@@ -1,62 +1,42 @@
 #!/usr/bin/env python3
-"""Yolo """
+"""A YOLO objection detection model class"""
+
+
 import tensorflow.keras as K
+import numpy as np
 
 
-class Yolo(object):
-    """ Yolo class """
-    def __init__(self, model_path, classes_path, class_t, nms_t, anchors):
-        """ Initializer """
-        model = K.models.load_model(model_path)
-        self.model = model
-        with open(classes_path, 'r') as fp:
-            classes = [i.strip() for i in fp.readlines()]
-            self.class_names = classes
+class Yolo:
+    """A YOLO object detection class """
+    def __init__(self, model_path, classes_path,
+                 class_t, nms_t, anchors):
+        self.model = K.models.load_model(model_path)
         self.class_t = class_t
-        self.nms_t = nms_t
         self.anchors = anchors
 
     def process_outputs(self, outputs, image_size):
-        """ Process the outputs """
-        boxes = [np.zeros(i[:, :, :, :4].shape) for i in outputs]
-        box_confidence = []
-        box_class_probs = []
-        image_height, image_width = image_size
-        for i in range(len(outputs)):
-            grid_height, grid_width, anchor_boxes, _ = outputs[i].shape
-            t_x = outputs[i][:, :, :, 0]
-            t_y = outputs[i][:, :, :, 1]
-            t_w = outputs[i][:, :, :, 2]
-            t_h = outputs[i][:, :, :, 3]
-
-            p_w = self.anchors[i, :, 0]
-            p_h = self.anchors[i, :, 1]
-
-            cx = np.array([np.arange(grid_width) for i in range(grid_height)])
-            cx = cx.reshape(grid_width, grid_width, 1)
-            cy = np.array([np.arange(grid_width) for i in range(grid_height)])
-            cy = cy.reshape(grid_height,
-                            grid_height).T.reshape(grid_height, grid_height, 1)
-
-            bx = ((1 / (1 + np.exp(-t_x))) + cx) / grid_width
-            by = ((1 / (1 + np.exp(-t_y))) + cy) / grid_height
-
-            bw = p_w * np.exp(t_w)
-            bh = p_h * np.exp(t_h)
-
-            bw /= self.model.input.shape[1].value
-            bh /= self.model.input.shape[2].value
-
-            boxes[i][:, :, :, 0] = (bx - (bw / 2)) * image_width
-            boxes[i][:, :, :, 1] = (by - (bh / 2)) * image_height
-            boxes[i][:, :, :, 2] = (bx + (bw / 2)) * image_width
-            boxes[i][:, :, :, 3] = (by + (bh / 2)) * image_height
-
-            box_conf = (1 / (1 + np.exp(-outputs[i][:, :, :, 4:5])))
-            box_conf.reshape(grid_height, grid_width, anchor_boxes, 1)
-            box_confidence.append(box_conf)
-
-            box_class = (1 / (1 + np.exp(-outputs[i][:, :, :, 5:])))
-            box_class_probs.append(box_class)
-
-        return boxes, box_confidence, box_class_probs
+        """ Process Darknet outputs """
+        boxes = [output[:, :, :, 0:4] for output in outputs]
+        for oidx, output in enumerate(boxes):
+            for y in range(output.shape[0]):
+                for x in range(output.shape[1]):
+                    centery = ((1 / (1 + np.exp(-output[y, x, :, 1])) + y)
+                               / output.shape[0] * image_size[0])
+                    centerx = ((1 / (1 + np.exp(-output[y, x, :, 0])) + x)
+                               / output.shape[1] * image_size[1])
+                    prior_resizes = self.anchors[oidx].astype(float)
+                    prior_resizes[:, 0] *= (np.exp(output[y, x, :, 2])
+                                            / 2 * image_size[1] /
+                                            self.model.input.shape[1].value)
+                    prior_resizes[:, 1] *= (np.exp(output[y, x, :, 3])
+                                            / 2 * image_size[0] /
+                                            self.model.input.shape[2].value)
+                    output[y, x, :, 0] = centerx - prior_resizes[:, 0]
+                    output[y, x, :, 1] = centery - prior_resizes[:, 1]
+                    output[y, x, :, 2] = centerx + prior_resizes[:, 0]
+                    output[y, x, :, 3] = centery + prior_resizes[:, 1]
+        box_confidences = [1 / (1 + np.exp(-output[:, :, :, 4, np.newaxis]))
+                           for output in outputs]
+        box_class_probs = [1 / (1 + np.exp(-output[:, :, :, 5:]))
+                           for output in outputs]
+        return boxes, box_confidences, box_class_probs
