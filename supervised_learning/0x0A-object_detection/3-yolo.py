@@ -60,7 +60,7 @@ class Yolo:
                 np.delete(all_confidences, thresh_idxs))
 
     def non_max_suppression(self, filtered_boxes, box_classes, box_scores):
-        """ non max suppresion on boundary boxes """
+        """ non max suppression on boxes """
         sort_order = np.lexsort((-box_scores, box_classes))
         box_scores = box_scores[sort_order]
         box_classes = box_classes[sort_order]
@@ -82,7 +82,7 @@ class Yolo:
                 np.delete(box_scores, del_idxs))
 
 
-def intersection_over_union(boxa, box):
+def intersection_over_union(boxa, boxb):
     """ calculate intersection over union """
     intx1 = max(boxa[0], boxb[0])
     inty1 = max(boxa[1], boxb[1])
