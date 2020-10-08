@@ -1,126 +1,118 @@
 #!/usr/bin/env python3
-"""A YOLO objection detection model class"""
-
-
-import tensorflow.keras as K
+"""
+Class Yolo that uses the Yolo v3 algorithm to perform object detection
+"""
+import tensorflow as tf
+from tensorflow.keras.models import load_model
 import numpy as np
-import cv2
 import os
+import cv2
 
 
 class Yolo:
-    """A YOLO object detection class """
-    def __init__(self, model_path, classes_path,
-                 class_t, nms_t, anchors):
-        self.model = K.models.load_model(model_path)
-        with open(classes_path) as class_file:
-            self.class_names = [line.rstrip('\n') for line in class_file]
+    """
+    Class constructor
+    """
+    def __init__(self, model_path, classes_path, class_t, nms_t, anchors):
+        """
+        Defining class, that performs object detection
+        """
+        self.model = load_model(model_path)
+        self.class_names = open(classes_path).read().splitlines()
         self.class_t = class_t
         self.nms_t = nms_t
         self.anchors = anchors
 
     def process_outputs(self, outputs, image_size):
-        """ Process Darknet outputs """
-        boxes = [output[:, :, :, 0:4] for output in outputs]
-        for oidx, output in enumerate(boxes):
-            for y in range(output.shape[0]):
-                for x in range(output.shape[1]):
-                    centery = ((1 / (1 + np.exp(-output[y, x, :, 1])) + y)
-                               / output.shape[0] * image_size[0])
-                    centerx = ((1 / (1 + np.exp(-output[y, x, :, 0])) + x)
-                               / output.shape[1] * image_size[1])
-                    prior_resizes = self.anchors[oidx].astype(float)
-                    prior_resizes[:, 0] *= (np.exp(output[y, x, :, 2])
-                                            / 2 * image_size[1] /
-                                            self.model.input.shape[1].value)
-                    prior_resizes[:, 1] *= (np.exp(output[y, x, :, 3])
-                                            / 2 * image_size[0] /
-                                            self.model.input.shape[2].value)
-                    output[y, x, :, 0] = centerx - prior_resizes[:, 0]
-                    output[y, x, :, 1] = centery - prior_resizes[:, 1]
-                    output[y, x, :, 2] = centerx + prior_resizes[:, 0]
-                    output[y, x, :, 3] = centery + prior_resizes[:, 1]
-        box_confidences = [1 / (1 + np.exp(-output[:, :, :, 4, np.newaxis]))
-                           for output in outputs]
-        box_class_probs = [1 / (1 + np.exp(-output[:, :, :, 5:]))
-                           for output in outputs]
+        """
+        Defining outputs
+        Returns a tuple of (boxes, box_confidences, box_class_probs)
+        """
+        box_confidences = []
+        boxes = []
+        box_class_probs = []
+
+        for i in range(len(outputs)):
+            box_confidences.append(tf.math.sigmoid(outputs[i][:, :, :, 4:5]))
+
+        for i in range(len(outputs)):
+            boxes.append(outputs[i][:, :, :, :4])
+        for i in range(len(outputs)):
+            box_class_probs.append(tf.math.sigmoid(outputs[i][:, :, :, 5:]))
+        with tf.Session() as sess:
+            box_confidences = sess.run(box_confidences)
+            box_class_probs = sess.run(box_class_probs)
         return boxes, box_confidences, box_class_probs
 
     def filter_boxes(self, boxes, box_confidences, box_class_probs):
-        """Filter box outputs """
-        all_boxes = np.concatenate([boxs.reshape(-1, 4) for boxs in boxes])
-        class_probs = np.concatenate([probs.reshape(-1,
-                                                    box_class_probs[0].
-                                                    shape[-1])
-                                      for probs in box_class_probs])
-        all_classes = class_probs.argmax(axis=1)
-        all_confidences = (np.concatenate([conf.reshape(-1)
-                                           for conf in box_confidences])
-                           * class_probs.max(axis=1))
-        thresh_idxs = np.where(all_confidences < self.class_t)
-        return (np.delete(all_boxes, thresh_idxs, axis=0),
-                np.delete(all_classes, thresh_idxs),
-                np.delete(all_confidences, thresh_idxs))
+        """
+        Contains the processed boundary boxes for each output, respectively
+        Returns a tuple of (filtered_boxes, box_classes, box_scores)
+        """
+        filtered_boxes = np.concatenate([box.reshape(-1, 4) for box in boxes])
+        reshaped_boxes = [box.reshape(-1, 80) for box in box_class_probs]
+        cat_box_classes = np.concatenate([box for box in reshaped_boxes])
+        box_classes = cat_box_classes.argmax(axis=1)
+        box_scores = np.concatenate([box_conf.reshape(-1) for
+                                     box_conf in box_confidences])
+        box_cl_max = cat_box_classes.max(axis=1)
+        box_scores *= box_cl_max
+        indecies = np.where(box_scores > self.class_t)
+        return (filtered_boxes[indecies],
+                box_classes[indecies], box_scores[indecies])
+
+    def iou(self, box1, box2):
+        """ calculates intersection over union """
+        xA = max(box1[0], box2[0])
+        yA = max(box1[1], box2[1])
+        xB = min(box1[2], box2[2])
+        yB = min(box1[3], box2[3])
+        area_intersect = (xB - xA + 1) * (yB - yA + 1)
+        area_box1 = (box1[2] - box1[0] + 1) * (box1[3] - box1[1] + 1)
+        area_box2 = (box2[2] - box2[0] + 1) * (box2[3] - box2[1] + 1)
+        iou = area_intersect / float(area_box1 + area_box2 - area_intersect)
+        return iou
 
     def non_max_suppression(self, filtered_boxes, box_classes, box_scores):
-        """ non max suppression on boxes """
-        sort_order = np.lexsort((-box_scores, box_classes))
-        box_scores = box_scores[sort_order]
-        box_classes = box_classes[sort_order]
-        filtered_boxes = filtered_boxes[sort_order]
-        del_idxs = []
-        for idx in range(len(box_scores)):
-            if idx in del_idxs:
-                continue
-            clas = box_classes[idx]
-            box = filtered_boxes[idx]
-            for cidx in range(idx + 1, len(box_scores)):
-                if (box_classes[cidx] != clas):
-                    break
-                if ((intersection_over_union(filtered_boxes[cidx], box)
-                     >= self.nms_t)):
-                    del_idxs.append(cidx)
-        return (np.delete(filtered_boxes, del_idxs, axis=0),
-                np.delete(box_classes, del_idxs),
-                np.delete(box_scores, del_idxs))
+        """ predicts bounding boxes ordered by class """
+        inds_sorted = np.argsort(box_classes)
+        box_scores_sorted = box_scores[inds_sorted]
+        box_classes_sorted = box_classes[inds_sorted]
+        filtered_boxes_sorted = filtered_boxes[inds_sorted]
+        idx = []
+        for i in range(len(box_scores_sorted)):
+            for j in range(i + 1, len(box_scores_sorted)):
+                if (box_classes_sorted[j] == box_classes_sorted[i]):
+                    union_score = self.iou(filtered_boxes_sorted[j],
+                                           filtered_boxes_sorted[i])
+                    if union_score < self.nms_t:
+                        idx.append(j)
+        box_predictions = filtered_boxes_sorted[idx]
+        predicted_box_classes = box_classes_sorted[idx]
+        predicted_box_scores = box_scores_sorted[idx]
+        return(box_predictions, predicted_box_classes, predicted_box_scores)
 
     @staticmethod
     def load_images(folder_path):
-        """ load images from folder """
-        file_list = os.listdir(folder_path)
+        """ loads images """
         images = []
         file_paths = []
-        for file in file_list:
-            path = folder_path + '/' + file
-            images.append(cv2.imread(folder_path + '/' + file))
+        for fn in os.listdir(folder_path):
+            path = folder_path + '/' + fn
+            images.append(cv2.imread(path))
             file_paths.append(path)
-        return images, file_paths
+        return(images, file_paths)
 
     def preprocess_images(self, images):
-        """ resize and rescale images """
-        image_sizes = np.zeros((len(images), 2))
-        target_height = self.model.input.shape[1].value
-        target_width = self.model.input.shape[2].value
-        proc_images = np.zeros((len(images), target_height, target_width, 3))
-        for idx, image in enumerate(images):
-            image_sizes[idx][0] = image.shape[0]
-            image_sizes[idx][1] = image.shape[1]
-            proc_images[idx] = cv2.resize(image,
-                                          (target_height, target_width),
-                                          interpolation=cv2.INTER_CUBIC)
-            proc_images[idx] -= proc_images[idx].min()
-            proc_images[idx] /= proc_images[idx].max()
-        return proc_images, image_sizes.astype(int)
-
-
-def intersection_over_union(boxa, boxb):
-    """ calculate intersection over union """
-    intx1 = max(boxa[0], boxb[0])
-    inty1 = max(boxa[1], boxb[1])
-    intx2 = min(boxa[2], boxb[2])
-    inty2 = min(boxa[3], boxb[3])
-
-    intarea = max(0, (intx2 - intx1)) * max(0, (inty2 - inty1))
-    boxaarea = (boxa[2] - boxa[0]) * (boxa[3] - boxa[1])
-    boxbarea = (boxb[2] - boxb[0]) * (boxb[3] - boxb[1])
-    return intarea / (boxaarea + boxbarea - intarea)
+        """ resize images """
+        image_shapes = np.empty((len(images), 2))
+        pimages = np.empty((len(images), input_h, intput_w, 3))
+        input_h = self.model.input.shape[1]
+        input_w = self.model.input.shape[2]
+        for i, im in enumerate(images):
+            image_shapes[i][0] = im.shape[0]
+            image_shapes[i][1] = im.shape[1]
+            pimages[i] = cv2.resize(im / 255,
+                                    (input_h, input_w),
+                                    interpolation=cv2.INTER_CUBIC)
+        return pimages, image_shapes
